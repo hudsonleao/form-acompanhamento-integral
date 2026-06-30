@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=8">
   </head>
   <body>
     <section class="login-screen" id="loginView">
@@ -34,7 +34,7 @@
           <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha" required>
         </label>
 
-        <button class="primary" id="loginButton" type="submit">Entrar</button>
+        <button class="primary" id="loginButton" type="submit">Acessar formulário</button>
       </form>
     </section>
 
@@ -48,8 +48,8 @@
           <p id="pageSubtitle">Educação personalizada - Colégio Farol</p>
         </div>
         <div class="header-actions">
-          <button class="ghost-icon" id="dashboardButton" title="Dashboard" type="button" aria-label="Abrir dashboard">Painel</button>
-          <button class="ghost-icon" id="logoutButton" title="Sair" type="button">Sair</button>
+          <button class="ghost-icon" id="dashboardButton" title="Ver painel" type="button" aria-label="Ver painel de acompanhamento">Ver painel</button>
+          <button class="ghost-icon" id="logoutButton" title="Sair da conta" type="button">Sair da conta</button>
         </div>
       </header>
 
@@ -61,7 +61,7 @@
 
           <div class="toolbar">
             <input id="searchInput" type="search" placeholder="Buscar por nome ou turma" autocomplete="off">
-            <button id="newStudentButton" type="button">Novo aluno</button>
+            <button id="newStudentButton" type="button">Cadastrar aluno</button>
           </div>
 
           <div class="quick-actions">
@@ -72,13 +72,13 @@
         </section>
 
         <section class="view" id="studentView">
-          <button class="back-button" type="button" data-view="homeView">Voltar</button>
+          <button class="back-button" type="button" data-view="homeView">Voltar para lista</button>
           <div class="student-profile">
             <div>
               <h2 id="studentName"></h2>
               <p id="studentMeta"></p>
             </div>
-            <button id="startAssessmentButton" type="button">Novo preenchimento</button>
+            <button id="startAssessmentButton" type="button">Registrar acompanhamento</button>
           </div>
           <div id="assessmentHistory" class="history-list"></div>
         </section>
@@ -87,6 +87,7 @@
           <form id="assessmentForm" novalidate>
             <section class="form-intro">
               <div>
+                <button class="back-button form-back-button" type="button" data-view="homeView">Voltar para lista</button>
                 <span class="section-kicker">Aluno selecionado</span>
                 <h2 id="formStudentName">Novo preenchimento</h2>
                 <p id="formStudentMeta">Registre evidências observáveis e escolha uma frequência para cada indicador.</p>
@@ -141,14 +142,14 @@
             </section>
 
             <div class="bottom-actions">
-              <button id="printButton" type="button">Gerar PDF</button>
-              <button class="primary" id="saveButton" type="submit">Salvar</button>
+              <button id="printButton" type="button">Gerar PDF do registro</button>
+              <button class="primary" id="saveButton" type="submit">Salvar preenchimento</button>
             </div>
           </form>
         </section>
 
         <section class="view" id="dashboardView">
-          <button class="back-button" type="button" data-view="homeView">Voltar</button>
+          <button class="back-button" type="button" data-view="homeView">Voltar para lista</button>
           <div class="dashboard-grid" id="dashboardCards"></div>
           <div class="dashboard-columns">
             <section class="panel">
@@ -178,7 +179,7 @@
         <label>Professora responsável<input id="newStudentTeacher" required placeholder="Ex.: Maria"></label>
         <div class="dialog-actions">
           <button value="cancel" type="button" id="cancelStudentButton">Cancelar</button>
-          <button class="primary" value="default" type="submit">Salvar</button>
+          <button class="primary" value="default" type="submit">Cadastrar aluno</button>
         </div>
       </form>
     </dialog>
@@ -193,6 +194,6 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/app.js"></script>
+    <script src="/app.js?v=8"></script>
   </body>
 </html>

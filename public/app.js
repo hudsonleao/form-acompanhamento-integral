@@ -290,8 +290,8 @@ function renderStudents() {
         <p>Último registro: ${student.lastAssessment || "sem registros"}</p>
       </div>
       <div class="card-actions">
-        <button type="button" title="Abrir histórico do aluno" aria-label="Abrir histórico de ${escapeHtml(student.name)}" data-open-student="${student.id}">Abrir</button>
-        <button type="button" title="Criar novo preenchimento" aria-label="Novo preenchimento para ${escapeHtml(student.name)}" data-new-assessment="${student.id}">Novo</button>
+        <button type="button" title="Ver histórico do aluno" aria-label="Ver histórico de ${escapeHtml(student.name)}" data-open-student="${student.id}">Ver histórico</button>
+        <button type="button" title="Registrar acompanhamento semanal" aria-label="Registrar acompanhamento para ${escapeHtml(student.name)}" data-new-assessment="${student.id}">Registrar semana</button>
       </div>
     </article>
   `).join("");
@@ -314,7 +314,7 @@ function openStudentDialog() {
 
 async function createStudent(event) {
   event.preventDefault();
-  const submit = event.submitter;
+  const submit = event.submitter || $("#studentForm button[type='submit']");
 
   const fields = [$("#newStudentName"), $("#newStudentClass"), $("#newStudentTeacher")];
   const missing = fields.find((field) => !field.value.trim());
@@ -330,9 +330,9 @@ async function createStudent(event) {
     await api("/api/students", {
       method: "POST",
       body: JSON.stringify({
-        name: $("#newStudentName").value,
-        className: $("#newStudentClass").value,
-        teacherName: $("#newStudentTeacher").value
+        name: $("#newStudentName").value.trim(),
+        className: $("#newStudentClass").value.trim(),
+        teacherName: $("#newStudentTeacher").value.trim()
       })
     });
     $("#studentDialog").close();

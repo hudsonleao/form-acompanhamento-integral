@@ -96,7 +96,10 @@ Para trocar o acesso inicial, defina no `.env`:
 AUTH_EMAIL=seu-email@colegio.com
 AUTH_PASSWORD=sua_senha
 AUTH_NAME=Nome exibido
+AUTH_SESSION_DAYS=30
 ```
+
+O login fica salvo no dispositivo por `AUTH_SESSION_DAYS` dias, com a sessão registrada no MySQL. Se mudar esse valor, reinicie o servidor ou rode `npm run pm2:reload`.
 
 ## Observação
 

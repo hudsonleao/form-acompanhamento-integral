@@ -9,8 +9,7 @@ loadEnv();
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
 const SESSION_COOKIE = "acomp_session";
-const SESSION_TTL_MS = 1000 * 60 * 60 * 8;
-const sessions = new Map();
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * Number(process.env.AUTH_SESSION_DAYS || 30);
 
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST || "localhost",
@@ -60,7 +59,7 @@ async function routeApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/login") {
     const body = await readJson(req);
     const user = await authenticateUser(body.email, body.password);
-    const sessionId = createSession(user);
+    const sessionId = await createSession(user, req);
     setSessionCookie(res, sessionId);
     sendJson(res, 200, { user });
     return;
@@ -68,14 +67,14 @@ async function routeApi(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/logout") {
     const sessionId = getSessionId(req);
-    if (sessionId) sessions.delete(sessionId);
+    if (sessionId) await deleteSession(sessionId);
     clearSessionCookie(res);
     sendJson(res, 200, { ok: true });
     return;
   }
 
   if (req.method === "GET" && url.pathname === "/api/session") {
-    const user = getSessionUser(req);
+    const user = await getSessionUser(req);
     sendJson(res, 200, { authenticated: Boolean(user), user });
     return;
   }
@@ -86,7 +85,7 @@ async function routeApi(req, res, url) {
     return;
   }
 
-  const currentUser = getSessionUser(req);
+  const currentUser = await getSessionUser(req);
   if (!currentUser) {
     sendJson(res, 401, { error: "Faça login para acessar o sistema." });
     return;
@@ -232,6 +231,25 @@ async function ensureAuthSchema() {
 
   await pool.query("ALTER TABLE users MODIFY password_hash VARCHAR(255) NOT NULL");
 
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS user_sessions (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      user_id INT UNSIGNED NOT NULL,
+      token_hash CHAR(64) NOT NULL,
+      expires_at DATETIME NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      last_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      user_agent VARCHAR(255) NULL,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_user_sessions_token (token_hash),
+      INDEX idx_user_sessions_user (user_id),
+      INDEX idx_user_sessions_expires (expires_at),
+      CONSTRAINT fk_user_sessions_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON DELETE CASCADE
+    )`
+  );
+
   const defaultEmail = String(process.env.AUTH_EMAIL || "admin@farol.local").trim().toLowerCase();
   const defaultPassword = String(process.env.AUTH_PASSWORD || "farol123");
   const defaultName = String(process.env.AUTH_NAME || "Colégio Farol");
@@ -245,28 +263,54 @@ async function ensureAuthSchema() {
   }
 }
 
-function createSession(user) {
-  cleanupSessions();
+async function createSession(user, req) {
+  await cleanupSessions();
   const sessionId = crypto.randomBytes(32).toString("hex");
-  sessions.set(sessionId, {
-    user,
-    expiresAt: Date.now() + SESSION_TTL_MS
-  });
+  await pool.execute(
+    `INSERT INTO user_sessions (user_id, token_hash, expires_at, user_agent)
+     VALUES (:userId, :tokenHash, :expiresAt, :userAgent)`,
+    {
+      userId: user.id,
+      tokenHash: hashSessionToken(sessionId),
+      expiresAt: toMysqlDateTime(getSessionExpiration()),
+      userAgent: String(req.headers["user-agent"] || "").slice(0, 255) || null
+    }
+  );
   return sessionId;
 }
 
-function getSessionUser(req) {
+async function getSessionUser(req) {
   const sessionId = getSessionId(req);
   if (!sessionId) return null;
 
-  const session = sessions.get(sessionId);
-  if (!session || session.expiresAt < Date.now()) {
-    sessions.delete(sessionId);
-    return null;
-  }
+  const tokenHash = hashSessionToken(sessionId);
+  try {
+    const [rows] = await pool.execute(
+      `SELECT u.id, u.name, u.email
+         FROM user_sessions us
+         JOIN users u ON u.id = us.user_id
+        WHERE us.token_hash = :tokenHash AND us.expires_at > NOW()
+        LIMIT 1`,
+      { tokenHash }
+    );
 
-  session.expiresAt = Date.now() + SESSION_TTL_MS;
-  return session.user;
+    const user = rows[0];
+    if (!user) {
+      await deleteSession(sessionId);
+      return null;
+    }
+
+    await pool.execute(
+      "UPDATE user_sessions SET expires_at = :expiresAt, last_seen_at = CURRENT_TIMESTAMP WHERE token_hash = :tokenHash",
+      { tokenHash, expiresAt: toMysqlDateTime(getSessionExpiration()) }
+    );
+    return { id: user.id, name: user.name, email: user.email };
+  } catch (error) {
+    if (error.code === "ER_NO_SUCH_TABLE") {
+      return null;
+    }
+    throw error;
+  }
 }
 
 function getSessionId(req) {
@@ -280,17 +324,53 @@ function getSessionId(req) {
 }
 
 function setSessionCookie(res, sessionId) {
-  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=${sessionId}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_TTL_MS / 1000}`);
+  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=${sessionId}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`);
 }
 
 function clearSessionCookie(res) {
   res.setHeader("Set-Cookie", `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`);
 }
 
-function cleanupSessions() {
-  const now = Date.now();
-  for (const [sessionId, session] of sessions.entries()) {
-    if (session.expiresAt < now) sessions.delete(sessionId);
+async function deleteSession(sessionId) {
+  try {
+    await pool.execute("DELETE FROM user_sessions WHERE token_hash = :tokenHash", {
+      tokenHash: hashSessionToken(sessionId)
+    });
+  } catch (error) {
+    if (error.code !== "ER_NO_SUCH_TABLE") {
+      throw error;
+    }
+  }
+}
+
+function hashSessionToken(sessionId) {
+  return crypto.createHash("sha256").update(String(sessionId)).digest("hex");
+}
+
+function getSessionExpiration() {
+  return new Date(Date.now() + SESSION_TTL_MS);
+}
+
+function toMysqlDateTime(date) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate())
+  ].join("-") + " " + [
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds())
+  ].join(":");
+}
+
+async function cleanupSessions() {
+  try {
+    await pool.query("DELETE FROM user_sessions WHERE expires_at <= NOW()");
+  } catch (error) {
+    if (error.code !== "ER_NO_SUCH_TABLE") {
+      throw error;
+    }
   }
 }
 

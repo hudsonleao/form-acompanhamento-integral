@@ -1,9 +1,9 @@
-const CACHE_NAME = "acompanhamento-integral-v2";
+const CACHE_NAME = "acompanhamento-integral-v8";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
-  "/styles.css",
-  "/app.js",
+  "/styles.css?v=8",
+  "/app.js?v=8",
   "/manifest.webmanifest",
   "/colegio.jpg",
   "/icon-192.png",

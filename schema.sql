@@ -14,6 +14,23 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY uniq_users_email (email)
 );
 
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  token_hash CHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  user_agent VARCHAR(255) NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uniq_user_sessions_token (token_hash),
+  INDEX idx_user_sessions_user (user_id),
+  INDEX idx_user_sessions_expires (expires_at),
+  CONSTRAINT fk_user_sessions_user
+    FOREIGN KEY (user_id) REFERENCES users (id)
+    ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS students (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   name VARCHAR(160) NOT NULL,
