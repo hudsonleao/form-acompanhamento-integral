@@ -54,21 +54,37 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Acompanhamento Integral em http://localhost:${PORT}`);
+  logInfo("server.start", {
+    port: PORT,
+    database: process.env.MYSQL_DATABASE || "acompanhamento_integral",
+    sessionDays: SESSION_DAYS
+  });
 });
 
 async function routeApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/login") {
     const body = await readJson(req);
+    logInfo("auth.login.attempt", {
+      email: maskEmail(body.email),
+      ip: getClientIp(req),
+      userAgent: getUserAgent(req)
+    });
     const user = await authenticateUser(body.email, body.password);
     const sessionId = await createSession(user, req);
     setSessionCookie(res, sessionId);
+    logInfo("auth.login.success", {
+      userId: user.id,
+      email: maskEmail(user.email),
+      session: sessionFingerprint(sessionId)
+    });
     sendJson(res, 200, { user });
     return;
   }
 
   if (req.method === "POST" && url.pathname === "/api/logout") {
     const sessionId = getSessionId(req);
-    if (sessionId) await deleteSession(sessionId);
+    logInfo("auth.logout", { hasCookie: Boolean(sessionId), session: sessionFingerprint(sessionId) });
+    if (sessionId) await deleteSession(sessionId, "logout");
     clearSessionCookie(res);
     sendJson(res, 200, { ok: true });
     return;
@@ -76,6 +92,11 @@ async function routeApi(req, res, url) {
 
   if (req.method === "GET" && url.pathname === "/api/session") {
     const user = await getSessionUser(req);
+    logInfo("auth.session.check", {
+      authenticated: Boolean(user),
+      userId: user?.id || null,
+      hasCookie: Boolean(getSessionId(req))
+    });
     sendJson(res, 200, { authenticated: Boolean(user), user });
     return;
   }
@@ -88,6 +109,12 @@ async function routeApi(req, res, url) {
 
   const currentUser = await getSessionUser(req);
   if (!currentUser) {
+    logInfo("auth.required.denied", {
+      method: req.method,
+      path: url.pathname,
+      hasCookie: Boolean(getSessionId(req)),
+      ip: getClientIp(req)
+    });
     sendJson(res, 401, { error: "Faça login para acessar o sistema." });
     return;
   }
@@ -108,6 +135,7 @@ async function routeApi(req, res, url) {
         ORDER BY s.name ASC`,
       { search }
     );
+    logInfo("students.list", { search: url.searchParams.get("q") || "", total: rows.length, userId: currentUser.id });
     sendJson(res, 200, rows);
     return;
   }
@@ -119,6 +147,7 @@ async function routeApi(req, res, url) {
       "INSERT INTO students (name, class_name, teacher_name) VALUES (:name, :className, :teacherName)",
       cleanStudent(body)
     );
+    logInfo("students.create", { studentId: result.insertId, userId: currentUser.id });
     sendJson(res, 201, { id: result.insertId });
     return;
   }
@@ -184,6 +213,12 @@ async function routeApi(req, res, url) {
         LIMIT 10`
     );
 
+    logInfo("dashboard.load", {
+      students: summaryRows[0]?.students || 0,
+      assessments: summaryRows[0]?.assessments || 0,
+      userId: currentUser.id
+    });
+
     sendJson(res, 200, {
       summary: summaryRows[0],
       byAspect: aspectRows,
@@ -212,6 +247,7 @@ async function authenticateUser(email, password) {
   const user = rows[0];
 
   if (!user || !verifyPassword(cleanPassword, user.passwordHash)) {
+    logInfo("auth.login.failed", { email: maskEmail(cleanEmail), userFound: Boolean(user) });
     const error = userError("E-mail ou senha inválidos.");
     error.statusCode = 401;
     throw error;
@@ -270,22 +306,31 @@ async function ensureAuthSchema() {
 async function createSession(user, req) {
   await cleanupSessions();
   const sessionId = crypto.randomBytes(32).toString("hex");
+  const expiresAt = getSessionExpiration();
   await pool.execute(
     `INSERT INTO user_sessions (user_id, token_hash, expires_at, user_agent)
      VALUES (:userId, :tokenHash, :expiresAt, :userAgent)`,
     {
       userId: user.id,
       tokenHash: hashSessionToken(sessionId),
-      expiresAt: toMysqlDateTime(getSessionExpiration()),
+      expiresAt: toMysqlDateTime(expiresAt),
       userAgent: String(req.headers["user-agent"] || "").slice(0, 255) || null
     }
   );
+  logInfo("session.create", {
+    userId: user.id,
+    session: sessionFingerprint(sessionId),
+    expiresAt: toMysqlDateTime(expiresAt)
+  });
   return sessionId;
 }
 
 async function getSessionUser(req) {
   const sessionId = getSessionId(req);
-  if (!sessionId) return null;
+  if (!sessionId) {
+    logInfo("session.missing_cookie", { path: req.url });
+    return null;
+  }
 
   const tokenHash = hashSessionToken(sessionId);
   try {
@@ -300,17 +345,25 @@ async function getSessionUser(req) {
 
     const user = rows[0];
     if (!user) {
-      await deleteSession(sessionId);
+      logInfo("session.not_found_or_expired", { session: sessionFingerprint(sessionId), now: toMysqlDateTime(new Date()) });
+      await deleteSession(sessionId, "not_found_or_expired");
       return null;
     }
 
+    const newExpiration = getSessionExpiration();
     await pool.execute(
       "UPDATE user_sessions SET expires_at = :expiresAt, last_seen_at = CURRENT_TIMESTAMP WHERE token_hash = :tokenHash",
-      { tokenHash, expiresAt: toMysqlDateTime(getSessionExpiration()) }
+      { tokenHash, expiresAt: toMysqlDateTime(newExpiration) }
     );
+    logInfo("session.valid", {
+      userId: user.id,
+      session: sessionFingerprint(sessionId),
+      renewedUntil: toMysqlDateTime(newExpiration)
+    });
     return { id: user.id, name: user.name, email: user.email };
   } catch (error) {
     if (error.code === "ER_NO_SUCH_TABLE") {
+      logInfo("session.table_missing");
       return null;
     }
     throw error;
@@ -337,15 +390,21 @@ function clearSessionCookie(res) {
   res.setHeader("Set-Cookie", `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`);
 }
 
-async function deleteSession(sessionId) {
+async function deleteSession(sessionId, reason = "manual") {
   try {
-    await pool.execute("DELETE FROM user_sessions WHERE token_hash = :tokenHash", {
+    const [result] = await pool.execute("DELETE FROM user_sessions WHERE token_hash = :tokenHash", {
       tokenHash: hashSessionToken(sessionId)
+    });
+    logInfo("session.delete", {
+      reason,
+      session: sessionFingerprint(sessionId),
+      affectedRows: result.affectedRows || 0
     });
   } catch (error) {
     if (error.code !== "ER_NO_SUCH_TABLE") {
       throw error;
     }
+    logInfo("session.delete.table_missing", { reason });
   }
 }
 
@@ -537,6 +596,37 @@ function publicErrorMessage(error) {
     return "Não foi possível conectar ao MySQL. Confira o arquivo .env e importe o schema.sql.";
   }
   return "Erro interno do servidor.";
+}
+
+function logInfo(event, data = {}) {
+  console.log(JSON.stringify({
+    level: "info",
+    event,
+    time: new Date().toISOString(),
+    ...data
+  }));
+}
+
+function maskEmail(email) {
+  const value = String(email || "").trim().toLowerCase();
+  const [name, domain] = value.split("@");
+  if (!name || !domain) return value ? "***" : "";
+  return `${name.slice(0, 2)}***@${domain}`;
+}
+
+function sessionFingerprint(sessionId) {
+  if (!sessionId) return null;
+  return hashSessionToken(sessionId).slice(0, 12);
+}
+
+function getClientIp(req) {
+  return String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "")
+    .split(",")[0]
+    .trim();
+}
+
+function getUserAgent(req) {
+  return String(req.headers["user-agent"] || "").slice(0, 120);
 }
 
 function loadEnv() {
