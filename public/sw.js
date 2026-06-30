@@ -1,9 +1,9 @@
-const CACHE_NAME = "acompanhamento-integral-v10";
+const CACHE_NAME = "acompanhamento-integral-v11";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
-  "/styles.css?v=10",
-  "/app.js?v=10",
+  "/styles.css?v=11",
+  "/app.js?v=11",
   "/manifest.webmanifest",
   "/colegio.jpg",
   "/icon-192.png",
@@ -30,13 +30,13 @@ self.addEventListener("fetch", (event) => {
   const requestUrl = new URL(event.request.url);
 
   if (requestUrl.pathname.startsWith("/api/")) {
-    event.respondWith(fetch(event.request));
+    event.respondWith(fetch(event.request, { cache: "no-store" }));
     return;
   }
 
   if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: "no-store" })
         .then((response) => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put("/index.html", copy));
@@ -49,7 +49,7 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(
     caches.match(event.request)
-      .then((cached) => cached || fetch(event.request).then((response) => {
+      .then((cached) => cached || fetch(event.request, { cache: "no-store" }).then((response) => {
         if (event.request.method === "GET" && response.ok) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));

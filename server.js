@@ -601,9 +601,13 @@ function sendJson(res, status, payload) {
 function noStoreHeaders() {
   return {
     "Cache-Control": "private, no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0",
+    "CDN-Cache-Control": "no-store",
+    "Cloudflare-CDN-Cache-Control": "no-store",
     "Pragma": "no-cache",
     "Expires": "0",
-    "Surrogate-Control": "no-store"
+    "Surrogate-Control": "no-store",
+    "Vary": "Cookie, Authorization",
+    "X-Acompanhamento-Cache": "no-store"
   };
 }
 

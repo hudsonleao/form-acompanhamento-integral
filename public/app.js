@@ -246,8 +246,16 @@ function showLogin() {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+  const method = String(options.method || "GET").toUpperCase();
+  const requestPath = method === "GET" ? withCacheBuster(path) : path;
+  const response = await fetch(requestPath, {
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-cache, no-store, max-age=0",
+      "Pragma": "no-cache",
+      ...(options.headers || {})
+    },
     ...options
   });
   const data = await response.json().catch(() => ({}));
@@ -258,6 +266,12 @@ async function api(path, options = {}) {
     throw new Error(data.error || "Não foi possível concluir a ação.");
   }
   return data;
+}
+
+function withCacheBuster(path) {
+  if (!path.startsWith("/api/")) return path;
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}_=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 async function loadStudents() {
