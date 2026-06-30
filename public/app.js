@@ -251,7 +251,12 @@ async function api(path, options = {}) {
     ...options
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "Não foi possível concluir a ação.");
+  if (!response.ok) {
+    if (response.status === 401 && path !== "/api/login" && path !== "/api/session") {
+      showLogin();
+    }
+    throw new Error(data.error || "Não foi possível concluir a ação.");
+  }
   return data;
 }
 
@@ -310,6 +315,15 @@ function openStudentDialog() {
 async function createStudent(event) {
   event.preventDefault();
   const submit = event.submitter;
+
+  const fields = [$("#newStudentName"), $("#newStudentClass"), $("#newStudentTeacher")];
+  const missing = fields.find((field) => !field.value.trim());
+  if (missing) {
+    missing.focus({ preventScroll: true });
+    showToast("Preencha nome, turma e professora.", true);
+    return;
+  }
+
   setButtonLoading(submit, "Salvando...");
 
   try {

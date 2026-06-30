@@ -1,4 +1,4 @@
-const CACHE_NAME = "acompanhamento-integral-v1";
+const CACHE_NAME = "acompanhamento-integral-v2";
 const STATIC_ASSETS = [
   "/",
   "/index.html",
