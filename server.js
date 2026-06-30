@@ -95,12 +95,15 @@ async function routeApi(req, res, url) {
     const search = `%${url.searchParams.get("q") || ""}%`;
     const [rows] = await pool.execute(
       `SELECT s.id, s.name, s.class_name AS className, s.teacher_name AS teacherName,
-              COUNT(a.id) AS assessmentCount,
-              DATE_FORMAT(MAX(a.assessment_date), '%d/%m/%Y') AS lastAssessment
+              COALESCE(stats.assessmentCount, 0) AS assessmentCount,
+              DATE_FORMAT(stats.lastAssessmentDate, '%d/%m/%Y') AS lastAssessment
          FROM students s
-         LEFT JOIN assessments a ON a.student_id = s.id
+         LEFT JOIN (
+           SELECT student_id, COUNT(*) AS assessmentCount, MAX(assessment_date) AS lastAssessmentDate
+             FROM assessments
+            GROUP BY student_id
+         ) stats ON stats.student_id = s.id
         WHERE s.name LIKE :search OR s.class_name LIKE :search OR s.teacher_name LIKE :search
-        GROUP BY s.id
         ORDER BY s.name ASC`,
       { search }
     );
