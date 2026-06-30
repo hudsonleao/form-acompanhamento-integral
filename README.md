@@ -46,6 +46,35 @@ npm start
 
 Depois acesse `http://localhost:3000`.
 
+## Produção com PM2
+
+Instale o PM2 no servidor:
+
+```bash
+npm install -g pm2
+```
+
+Suba a aplicação:
+
+```bash
+npm run pm2:start
+```
+
+Comandos úteis:
+
+```bash
+npm run pm2:reload
+npm run pm2:stop
+npm run pm2:logs
+```
+
+Para iniciar automaticamente após reboot do servidor:
+
+```bash
+pm2 startup
+pm2 save
+```
+
 ## PWA
 
 O app pode ser instalado pelo navegador. Ao abrir a aplicação, aparece um aviso "Instale o app"; quando o navegador oferecer suporte, o botão `Instalar` abre o prompt nativo de instalação. O service worker mantém os arquivos estáticos em cache para abertura mais rápida.

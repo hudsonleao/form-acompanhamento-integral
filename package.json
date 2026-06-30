@@ -5,7 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "pm2:start": "pm2 start ecosystem.config.cjs --env production",
+    "pm2:reload": "pm2 reload acompanhamento-integral --update-env",
+    "pm2:stop": "pm2 stop acompanhamento-integral",
+    "pm2:logs": "pm2 logs acompanhamento-integral"
   },
   "dependencies": {
     "mysql2": "^3.11.5"

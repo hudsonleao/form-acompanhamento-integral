@@ -7,6 +7,7 @@ node_modules/
 *.log
 server.log
 server.err.log
+logs/*.log
 
 .DS_Store
 Thumbs.db
