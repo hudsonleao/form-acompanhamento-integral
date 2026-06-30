@@ -143,12 +143,20 @@ async function routeApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/students") {
     const body = await readJson(req);
     requireFields(body, ["name", "className", "teacherName"]);
+    const student = cleanStudent(body);
     const [result] = await pool.execute(
       "INSERT INTO students (name, class_name, teacher_name) VALUES (:name, :className, :teacherName)",
-      cleanStudent(body)
+      student
     );
     logInfo("students.create", { studentId: result.insertId, userId: currentUser.id });
-    sendJson(res, 201, { id: result.insertId });
+    sendJson(res, 201, {
+      id: result.insertId,
+      name: student.name,
+      className: student.className,
+      teacherName: student.teacherName,
+      assessmentCount: 0,
+      lastAssessment: null
+    });
     return;
   }
 

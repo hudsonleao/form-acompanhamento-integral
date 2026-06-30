@@ -263,10 +263,12 @@ async function api(path, options = {}) {
 async function loadStudents() {
   const list = $("#studentList");
   list.innerHTML = skeletonCards();
-  const q = encodeURIComponent($("#searchInput").value.trim());
+  const search = $("#searchInput").value.trim();
+  const q = encodeURIComponent(search);
 
   try {
     state.students = await api(`/api/students?q=${q}`);
+    console.info("[acompanhamento] alunos carregados", { total: state.students.length, search });
     renderStudents();
   } catch (error) {
     list.innerHTML = emptyState("Não foi possível carregar os alunos", "Confira a conexão com o MySQL e tente novamente.");
@@ -327,7 +329,7 @@ async function createStudent(event) {
   setButtonLoading(submit, "Salvando...");
 
   try {
-    await api("/api/students", {
+    const createdStudent = await api("/api/students", {
       method: "POST",
       body: JSON.stringify({
         name: $("#newStudentName").value.trim(),
@@ -337,6 +339,8 @@ async function createStudent(event) {
     });
     $("#studentDialog").close();
     event.target.reset();
+    $("#searchInput").value = "";
+    console.info("[acompanhamento] aluno cadastrado", createdStudent);
     showToast("Aluno cadastrado.");
     await loadStudents();
   } catch (error) {
