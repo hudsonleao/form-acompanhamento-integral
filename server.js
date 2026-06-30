@@ -9,7 +9,8 @@ loadEnv();
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
 const SESSION_COOKIE = "acomp_session";
-const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * Number(process.env.AUTH_SESSION_DAYS || 30);
+const SESSION_DAYS = parsePositiveNumber(process.env.AUTH_SESSION_DAYS, 30);
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * SESSION_DAYS;
 
 const pool = mysql.createPool({
   host: process.env.MYSQL_HOST || "localhost",
@@ -292,9 +293,9 @@ async function getSessionUser(req) {
       `SELECT u.id, u.name, u.email
          FROM user_sessions us
          JOIN users u ON u.id = us.user_id
-        WHERE us.token_hash = :tokenHash AND us.expires_at > NOW()
+        WHERE us.token_hash = :tokenHash AND us.expires_at > :now
         LIMIT 1`,
-      { tokenHash }
+      { tokenHash, now: toMysqlDateTime(new Date()) }
     );
 
     const user = rows[0];
@@ -327,11 +328,13 @@ function getSessionId(req) {
 }
 
 function setSessionCookie(res, sessionId) {
-  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=${sessionId}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`);
+  const maxAge = Math.floor(SESSION_TTL_MS / 1000);
+  const expires = getSessionExpiration().toUTCString();
+  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=${sessionId}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}; Expires=${expires}`);
 }
 
 function clearSessionCookie(res) {
-  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`);
+  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`);
 }
 
 async function deleteSession(sessionId) {
@@ -369,12 +372,19 @@ function toMysqlDateTime(date) {
 
 async function cleanupSessions() {
   try {
-    await pool.query("DELETE FROM user_sessions WHERE expires_at <= NOW()");
+    await pool.execute("DELETE FROM user_sessions WHERE expires_at <= :now", {
+      now: toMysqlDateTime(new Date())
+    });
   } catch (error) {
     if (error.code !== "ER_NO_SUCH_TABLE") {
       throw error;
     }
   }
+}
+
+function parsePositiveNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
 }
 
 function hashPassword(password) {
