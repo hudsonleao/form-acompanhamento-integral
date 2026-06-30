@@ -21,13 +21,7 @@ Aplicação Node para acompanhamento volitivo, afetivo e cognitivo dos alunos, i
 npm install
 ```
 
-2. Crie o banco e as tabelas no MySQL:
-
-```bash
-mysql -u root -p < schema.sql
-```
-
-3. Crie um arquivo `.env` a partir de `.env.example` e preencha os dados do MySQL:
+2. Crie um arquivo `.env` a partir de `.env.example` e preencha os dados do MySQL:
 
 ```env
 PORT=3000
@@ -37,6 +31,14 @@ MYSQL_USER=root
 MYSQL_PASSWORD=sua_senha
 MYSQL_DATABASE=acompanhamento_integral
 ```
+
+3. Crie o banco e as tabelas no MySQL:
+
+```bash
+npm run migrate
+```
+
+Esse comando lê o `.env`, cria o banco definido em `MYSQL_DATABASE` e executa todas as tabelas do `schema.sql`.
 
 4. Inicie o servidor:
 

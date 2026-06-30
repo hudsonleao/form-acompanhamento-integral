@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "migrate": "node scripts/migrate.js",
     "pm2:start": "pm2 start ecosystem.config.cjs --env production",
     "pm2:reload": "pm2 reload acompanhamento-integral --update-env",
     "pm2:stop": "pm2 stop acompanhamento-integral",
