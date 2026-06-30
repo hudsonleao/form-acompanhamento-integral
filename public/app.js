@@ -342,7 +342,13 @@ async function createStudent(event) {
     $("#searchInput").value = "";
     console.info("[acompanhamento] aluno cadastrado", createdStudent);
     showToast("Aluno cadastrado.");
-    await loadStudents();
+    if (Array.isArray(createdStudent.students)) {
+      state.students = createdStudent.students;
+      console.info("[acompanhamento] lista atualizada pelo cadastro", { total: state.students.length });
+      renderStudents();
+    } else {
+      await loadStudents();
+    }
   } catch (error) {
     showToast(error.message, true);
   } finally {

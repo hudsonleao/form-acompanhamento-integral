@@ -120,21 +120,7 @@ async function routeApi(req, res, url) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/students") {
-    const search = `%${url.searchParams.get("q") || ""}%`;
-    const [rows] = await pool.execute(
-      `SELECT s.id, s.name, s.class_name AS className, s.teacher_name AS teacherName,
-              COALESCE(stats.assessmentCount, 0) AS assessmentCount,
-              DATE_FORMAT(stats.lastAssessmentDate, '%d/%m/%Y') AS lastAssessment
-         FROM students s
-         LEFT JOIN (
-           SELECT student_id, COUNT(*) AS assessmentCount, MAX(assessment_date) AS lastAssessmentDate
-             FROM assessments
-            GROUP BY student_id
-         ) stats ON stats.student_id = s.id
-        WHERE s.name LIKE :search OR s.class_name LIKE :search OR s.teacher_name LIKE :search
-        ORDER BY s.name ASC`,
-      { search }
-    );
+    const rows = await listStudents(url.searchParams.get("q") || "");
     logInfo("students.list", { search: url.searchParams.get("q") || "", total: rows.length, userId: currentUser.id });
     sendJson(res, 200, rows);
     return;
@@ -148,14 +134,18 @@ async function routeApi(req, res, url) {
       "INSERT INTO students (name, class_name, teacher_name) VALUES (:name, :className, :teacherName)",
       student
     );
-    logInfo("students.create", { studentId: result.insertId, userId: currentUser.id });
+    const students = await listStudents("");
+    logInfo("students.create", { studentId: result.insertId, userId: currentUser.id, totalAfterCreate: students.length });
     sendJson(res, 201, {
-      id: result.insertId,
-      name: student.name,
-      className: student.className,
-      teacherName: student.teacherName,
-      assessmentCount: 0,
-      lastAssessment: null
+      student: {
+        id: result.insertId,
+        name: student.name,
+        className: student.className,
+        teacherName: student.teacherName,
+        assessmentCount: 0,
+        lastAssessment: null
+      },
+      students
     });
     return;
   }
@@ -468,6 +458,25 @@ function verifyPassword(password, storedHash) {
   return expected.length === candidate.length && crypto.timingSafeEqual(expected, candidate);
 }
 
+async function listStudents(query = "") {
+  const search = `%${String(query || "").trim()}%`;
+  const [rows] = await pool.execute(
+    `SELECT s.id, s.name, s.class_name AS className, s.teacher_name AS teacherName,
+            COALESCE(stats.assessmentCount, 0) AS assessmentCount,
+            DATE_FORMAT(stats.lastAssessmentDate, '%d/%m/%Y') AS lastAssessment
+       FROM students s
+       LEFT JOIN (
+         SELECT student_id, COUNT(*) AS assessmentCount, MAX(assessment_date) AS lastAssessmentDate
+           FROM assessments
+          GROUP BY student_id
+       ) stats ON stats.student_id = s.id
+      WHERE s.name LIKE :search OR s.class_name LIKE :search OR s.teacher_name LIKE :search
+      ORDER BY s.name ASC`,
+    { search }
+  );
+  return rows;
+}
+
 async function saveAssessment(body) {
   requireFields(body, ["studentId", "assessmentDate", "periodLabel", "teacherName", "responses"]);
   if (!Array.isArray(body.responses) || body.responses.length === 0) {
@@ -540,15 +549,24 @@ function serveStatic(rawPathname, res) {
           sendJson(res, 404, { error: "Arquivo não encontrado." });
           return;
         }
-        res.writeHead(200, { "Content-Type": MIME_TYPES[".html"] });
+        res.writeHead(200, staticHeaders(path.join(PUBLIC_DIR, "index.html")));
         res.end(fallbackContent);
       });
       return;
     }
 
-    res.writeHead(200, { "Content-Type": MIME_TYPES[path.extname(filePath)] || "application/octet-stream" });
+    res.writeHead(200, staticHeaders(filePath));
     res.end(content);
   });
+}
+
+function staticHeaders(filePath) {
+  const extension = path.extname(filePath);
+  const headers = { "Content-Type": MIME_TYPES[extension] || "application/octet-stream" };
+  if ([".html", ".js", ".css", ".webmanifest"].includes(extension)) {
+    Object.assign(headers, noStoreHeaders());
+  }
+  return headers;
 }
 
 function readJson(req, limit = 2_000_000) {
@@ -573,8 +591,20 @@ function readJson(req, limit = 2_000_000) {
 }
 
 function sendJson(res, status, payload) {
-  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    ...noStoreHeaders()
+  });
   res.end(JSON.stringify(payload));
+}
+
+function noStoreHeaders() {
+  return {
+    "Cache-Control": "private, no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+    "Surrogate-Control": "no-store"
+  };
 }
 
 function requireFields(body, fields) {
