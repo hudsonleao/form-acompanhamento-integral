@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#17395f">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Acomp. Integral">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <title>Acompanhamento Integral - Colégio Farol</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <section class="login-screen" id="loginView">
+      <form class="login-card" id="loginForm" novalidate>
+        <div class="login-logo">
+          <img src="/colegio.jpg" alt="Colégio Farol">
+        </div>
+        <span class="section-kicker">Acesso restrito</span>
+        <h1>Acompanhamento Integral</h1>
+        <p>Entre com seu e-mail e senha para acessar os registros dos alunos.</p>
+
+        <label>
+          E-mail
+          <input id="loginEmail" type="email" autocomplete="username" placeholder="email@email.com.br" required>
+        </label>
+        <label>
+          Senha
+          <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Digite sua senha" required>
+        </label>
+
+        <button class="primary" id="loginButton" type="submit">Entrar</button>
+      </form>
+    </section>
+
+    <div class="app-shell is-hidden" id="appShell">
+      <header class="topbar">
+        <div class="brand-mark" aria-label="Colégio Farol">
+          <img src="/colegio.jpg" alt="Colégio Farol">
+        </div>
+        <div>
+          <h1 id="pageTitle">Acompanhamento Integral</h1>
+          <p id="pageSubtitle">Educação personalizada - Colégio Farol</p>
+        </div>
+        <div class="header-actions">
+          <button class="ghost-icon" id="dashboardButton" title="Dashboard" type="button" aria-label="Abrir dashboard">Painel</button>
+          <button class="ghost-icon" id="logoutButton" title="Sair" type="button">Sair</button>
+        </div>
+      </header>
+
+      <main>
+        <div class="sun-divider" aria-hidden="true"><span></span></div>
+
+        <section class="view active" id="homeView">
+          <div class="notice">Lista compartilhada - visível para todas as professoras do colégio</div>
+
+          <div class="toolbar">
+            <input id="searchInput" type="search" placeholder="Buscar por nome ou turma" autocomplete="off">
+            <button id="newStudentButton" type="button">Novo aluno</button>
+          </div>
+
+          <div class="quick-actions">
+            <button class="outline-wide" id="exportCsvButton" type="button">Exportar planilha</button>
+          </div>
+
+          <div class="student-list" id="studentList"></div>
+        </section>
+
+        <section class="view" id="studentView">
+          <button class="back-button" type="button" data-view="homeView">Voltar</button>
+          <div class="student-profile">
+            <div>
+              <h2 id="studentName"></h2>
+              <p id="studentMeta"></p>
+            </div>
+            <button id="startAssessmentButton" type="button">Novo preenchimento</button>
+          </div>
+          <div id="assessmentHistory" class="history-list"></div>
+        </section>
+
+        <section class="view" id="formView">
+          <form id="assessmentForm" novalidate>
+            <section class="form-intro">
+              <div>
+                <span class="section-kicker">Aluno selecionado</span>
+                <h2 id="formStudentName">Novo preenchimento</h2>
+                <p id="formStudentMeta">Registre evidências observáveis e escolha uma frequência para cada indicador.</p>
+              </div>
+              <div class="progress-card" aria-live="polite">
+                <strong id="progressPercent">0%</strong>
+                <span id="progressText">0 de 37 indicadores</span>
+                <div class="progress-track"><i id="progressBar"></i></div>
+              </div>
+            </section>
+
+            <div class="form-grid">
+              <label>
+                Data do preenchimento (semana) *
+                <input id="assessmentDate" type="date" required>
+              </label>
+              <label>
+                Bimestre / trimestre *
+                <input id="periodLabel" type="text" placeholder="Ex.: Semana de 30/06/2026" required>
+              </label>
+              <label>
+                Professora responsável *
+                <input id="teacherName" type="text" required>
+              </label>
+            </div>
+
+            <p class="helper-text">Marque a frequência observada para cada indicador e registre evidências nas observações.</p>
+            <div id="aspectSections"></div>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <strong>Fotos e evidências</strong>
+                <span>Anexe registros visuais desta semana</span>
+              </div>
+              <label class="upload-box">
+                <input id="photoInput" type="file" accept="image/*" multiple>
+                <span>Anexar fotos</span>
+              </label>
+              <p class="helper-text">As fotos são comprimidas automaticamente e ficam vinculadas ao preenchimento.</p>
+              <div id="photoPreview" class="photo-preview"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <strong>Síntese pedagógica</strong>
+                <span>Encaminhamentos e plano de acompanhamento</span>
+              </div>
+              <label>Pontos fortes observados<textarea id="strengths"></textarea></label>
+              <label>Aspectos a desenvolver<textarea id="developmentPoints"></textarea></label>
+              <label>Encaminhamentos pedagógicos propostos<textarea id="pedagogicalActions"></textarea></label>
+              <label>Articulação com a família<textarea id="familyAlignment"></textarea></label>
+            </section>
+
+            <div class="bottom-actions">
+              <button id="printButton" type="button">Gerar PDF</button>
+              <button class="primary" id="saveButton" type="submit">Salvar</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="view" id="dashboardView">
+          <button class="back-button" type="button" data-view="homeView">Voltar</button>
+          <div class="dashboard-grid" id="dashboardCards"></div>
+          <div class="dashboard-columns">
+            <section class="panel">
+              <div class="panel-heading">
+                <strong>Média por aspecto</strong>
+                <span>Escala de 1 a 4</span>
+              </div>
+              <div id="aspectChart" class="bars"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-heading">
+                <strong>Pontos de atenção</strong>
+                <span>Indicadores marcados como às vezes ou raramente</span>
+              </div>
+              <div id="attentionList" class="attention-list"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="studentDialog">
+      <form method="dialog" id="studentForm" class="dialog-form">
+        <h2>Novo aluno</h2>
+        <label>Nome do aluno<input id="newStudentName" required autocomplete="name" placeholder="Ex.: João da Silva"></label>
+        <label>Turma / ano<input id="newStudentClass" required placeholder="Ex.: Maternal II"></label>
+        <label>Professora responsável<input id="newStudentTeacher" required placeholder="Ex.: Maria"></label>
+        <div class="dialog-actions">
+          <button value="cancel" type="button" id="cancelStudentButton">Cancelar</button>
+          <button class="primary" value="default" type="submit">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="install-prompt is-hidden" id="installPrompt" role="status" aria-live="polite">
+      <div>
+        <strong>Instale o app</strong>
+        <span>Acesse o Acompanhamento Integral direto da tela inicial.</span>
+      </div>
+      <button class="primary" id="installAppButton" type="button">Instalar</button>
+      <button class="install-dismiss" id="dismissInstallButton" type="button" aria-label="Fechar aviso">×</button>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>

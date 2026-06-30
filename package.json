@@ -1,0 +1,16 @@
+{
+  "name": "form-acomp-integral",
+  "version": "1.0.0",
+  "description": "Acompanhamento integral de alunos com formulario responsivo, MySQL e dashboard.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "mysql2": "^3.11.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

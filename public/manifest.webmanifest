@@ -1,0 +1,44 @@
+{
+  "name": "Acompanhamento Integral - Colégio Farol",
+  "short_name": "Acomp. Integral",
+  "description": "Formulário e dashboard de acompanhamento integral dos alunos do Colégio Farol.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f4f6f2",
+  "theme_color": "#17395f",
+  "categories": ["education", "productivity"],
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Novo acompanhamento",
+      "short_name": "Novo",
+      "description": "Abrir o app para iniciar um novo preenchimento.",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
